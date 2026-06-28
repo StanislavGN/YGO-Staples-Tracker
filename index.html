@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YGO Custom Collection Engine</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="./ygo_data.js"></script>
+    <style>
+        .pill-btn {
+            display:inline-flex;align-items:center;gap:4px;padding:4px 12px;
+            border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;
+            cursor:pointer;transition:all .15s;border:1px solid transparent;user-select:none;
+        }
+        .pill-btn.off{background:#0d0d10;border-color:#374151;color:#6b7280;}
+        .pill-btn.off:hover{border-color:#4b5563;color:#9ca3af;}
+        .pill-type.on {background:#1c1404;color:#f59e0b;border-color:#f59e0b;}
+        .pill-sub.on  {background:#0d1f2d;color:#38bdf8;border-color:#38bdf8;}
+        .pill-genre.on{background:#0d1220;color:#818cf8;border-color:#818cf8;}
+        .pill-attr.on {background:#140b1c;color:#c084fc;border-color:#c084fc;}
+        .pill-race.on {background:#0d1a12;color:#4ade80;border-color:#4ade80;}
+        .pill-marker.on{background:#061818;color:#00ecda;border-color:#00ecda;}
+        .pill-ban.on  {background:#1c0a0a;color:#f87171;border-color:#f87171;}
+        .pill-spell.on{background:#071a0d;color:#34d399;border-color:#34d399;}
+        .pill-trap.on {background:#1a0707;color:#f87171;border-color:#ef4444;}
+        .tag-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:6px;font-size:10px;font-weight:700;font-family:monospace;}
+        /* hide number input spinners */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
+        input[type=number]{-moz-appearance:textfield;}
+
+        /* Mobile: stack layout */
+        @media(max-width:1023px){
+            body{overflow:auto;height:auto;max-height:none;}
+            main{flex-direction:column!important;overflow:visible!important;}
+            .flex-1.min-h-0.flex.flex-col.gap-4.overflow-hidden{overflow:visible!important;min-height:0;}
+            #page-main-view,#page-staple-tracker{flex:none!important;height:420px;}
+            .flex-\[2\]{flex:none!important;height:300px;}
+            .lg\:w-85{width:100%!important;}
+            .max-h-full{max-height:none!important;}
+        }
+    </style>
+</head>
+<body class="bg-[#0f0f12] text-gray-200 font-sans h-screen max-h-screen overflow-hidden flex flex-col">
+
+<header class="border-b border-gray-800 bg-[#141417] px-4 sm:px-8 py-3 flex justify-between items-center shadow-md shrink-0">
+    <div class="flex items-center space-x-2">
+        <div class="h-2.5 w-2.5 rounded-full bg-[#00ecda]"></div>
+        <h1 class="text-xs sm:text-sm font-bold uppercase tracking-widest text-[#00ecda]">YGO Analytics</h1>
+    </div>
+    <nav class="flex space-x-1 bg-[#1a1a1f] p-1 sm:p-1.5 rounded-lg border border-gray-800">
+        <button id="btn-page1" onclick="switchPage('main-view')" class="text-xs px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium transition cursor-pointer bg-[#00ecda] text-gray-900">Cards</button>
+        <button id="btn-page2" onclick="switchPage('staple-tracker')" class="text-xs px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium transition text-gray-400 hover:text-white cursor-pointer">Staples</button>
+    </nav>
+</header>
+
+<main class="flex-1 p-3 sm:p-5 min-h-0 w-full mx-auto flex flex-col lg:flex-row gap-4 sm:gap-5 max-w-[100%]">
+    <div class="flex-1 min-h-0 flex flex-col gap-4 overflow-hidden">
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-3 gap-3 shrink-0">
+            <div class="bg-[#141417] border border-gray-800 p-3 rounded-xl shadow-sm">
+                <p class="text-[9px] sm:text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Total Cards</p>
+                <h2 id="kpi-matched-count" class="text-lg sm:text-xl font-black mt-0.5 text-yellow-400">0</h2>
+            </div>
+            <div class="bg-[#141417] border border-gray-800 p-3 rounded-xl shadow-sm">
+                <p class="text-[9px] sm:text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Printings</p>
+                <h2 id="kpi-total-printings" class="text-lg sm:text-xl font-black mt-0.5 text-[#00ecda]">0</h2>
+            </div>
+            <div class="bg-[#141417] border border-gray-800 p-3 rounded-xl shadow-sm">
+                <p class="text-[9px] sm:text-[10px] uppercase tracking-wider text-gray-400 font-semibold">Staples</p>
+                <h2 id="kpi-staples-count" class="text-lg sm:text-xl font-black mt-0.5 text-cyan-400">0</h2>
+            </div>
+        </div>
+
+        <!-- Main table -->
+        <div id="page-main-view" class="bg-[#141417] border border-gray-800 rounded-xl flex flex-col flex-[3] min-h-0 overflow-hidden">
+            <div class="px-4 py-2.5 border-b border-gray-800 bg-[#18181c] shrink-0">
+                <h3 class="text-xs uppercase font-bold tracking-widest text-gray-400">Card Inventory</h3>
+            </div>
+            <div class="overflow-auto flex-1 min-h-0">
+                <table class="w-full text-left text-xs border-collapse" style="min-width:700px">
+                    <thead class="bg-[#111114] text-gray-400 font-medium sticky top-0 border-b border-gray-800 z-10 select-none">
+                        <tr>
+                            <th class="p-2 w-[50px]">Img</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('name')">Name <span id="sort-icon-name">↕</span></th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden sm:table-cell" onclick="handleSortField('latest_set_name')">Latest Set <span id="sort-icon-latest_set_name">↕</span></th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden md:table-cell" onclick="handleSortField('latest_printing_date')">Release <span id="sort-icon-latest_printing_date">↕</span></th>
+                            <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50 hidden md:table-cell" onclick="handleSortField('total_printings')">Prints <span id="sort-icon-total_printings">↕</span></th>
+                            <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50 hidden lg:table-cell" onclick="handleSortField('rarity_count')">Rarities <span id="sort-icon-rarity_count">↕</span></th>
+                            <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('genesys_points')">Pts <span id="sort-icon-genesys_points">↕</span></th>
+                            <th class="p-2 hidden sm:table-cell">Banlist</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden md:table-cell" onclick="handleSortField('tcg_price')">TCG$ <span id="sort-icon-tcg_price">↕</span></th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden lg:table-cell" onclick="handleSortField('cm_price')">CM€ <span id="sort-icon-cm_price">↕</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="main-table-body" class="divide-y divide-gray-800/50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Staple table -->
+        <div id="page-staple-tracker" class="bg-[#141417] border border-gray-800 rounded-xl flex flex-col flex-[3] min-h-0 overflow-hidden hidden">
+            <div class="px-4 py-2.5 border-b border-gray-800 bg-[#18181c] shrink-0">
+                <h3 class="text-xs uppercase font-bold tracking-widest text-[#00ecda]">Staples</h3>
+            </div>
+            <div class="overflow-auto flex-1 min-h-0">
+                <table class="w-full text-left text-xs border-collapse" style="min-width:500px">
+                    <thead class="bg-[#111114] text-gray-400 font-medium sticky top-0 border-b border-gray-800 z-10 select-none">
+                        <tr>
+                            <th class="p-2 w-[50px]">Img</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('name')">Name <span id="sort-icon-staple-name">↕</span></th>
+                            <th class="p-2 hidden sm:table-cell">Use Case</th>
+                            <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('genesys_points')">Pts <span id="sort-icon-staple-genesys_points">↕</span></th>
+                            <th class="p-2 hidden sm:table-cell">Banlist</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden md:table-cell" onclick="handleSortField('tcg_price')">TCG$ <span id="sort-icon-staple-tcg_price">↕</span></th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden lg:table-cell" onclick="handleSortField('cm_price')">CM€ <span id="sort-icon-staple-cm_price">↕</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="staple-table-body" class="divide-y divide-gray-800/50"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Printing detail table -->
+        <div class="bg-[#141417] border border-gray-800 rounded-xl flex flex-col flex-[2] min-h-0 overflow-hidden">
+            <div class="px-4 py-2 border-b border-gray-800 bg-[#121215] flex justify-between items-center shrink-0">
+                <h3 class="text-xs uppercase font-bold tracking-widest text-gray-400">Printing Details</h3>
+                <span id="selected-card-title" class="text-[11px] font-mono font-bold text-[#00ecda] bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-900/40 truncate max-w-[60%]">No Card Selected</span>
+            </div>
+            <div class="overflow-auto flex-1 min-h-0">
+                <table class="w-full text-left text-xs border-collapse" style="min-width:400px">
+                    <thead class="bg-[#111114] text-gray-500 font-medium sticky top-0 border-b border-gray-800 z-10 select-none">
+                        <tr>
+                            <th class="p-2 w-[50px]">Img</th>
+                            <th class="p-2">Card Name</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleDetailSortField('rarity')">Rarity</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleDetailSortField('set_name')">Set</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden sm:table-cell" onclick="handleDetailSortField('release_date')">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="detail-table-body" class="divide-y divide-gray-800/40">
+                        <tr><td colspan="5" class="p-6 text-center text-gray-600 italic">Click a card row above.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT SIDEBAR -->
+    <div class="w-full lg:w-80 xl:w-85 flex flex-col gap-4 shrink-0 overflow-y-auto max-h-full">
+
+        <!-- Card preview panel -->
+        <div id="card-render-panel" class="bg-[#141417] border border-gray-800 p-4 rounded-xl flex flex-col items-center shadow-sm select-none shrink-0 hidden">
+            <div class="w-full pb-2 border-b border-gray-800 flex justify-between items-center mb-3">
+                <h3 id="render-viewport-header-title" class="text-xs uppercase font-bold tracking-wider text-[#00ecda] truncate max-w-[85%]">Card Name</h3>
+                <button onclick="closeRenderViewport()" class="text-gray-500 hover:text-gray-300 text-xs font-bold px-1.5 py-0.5 rounded hover:bg-gray-800">✕</button>
+            </div>
+            <div class="w-full flex justify-center mb-4">
+                <img id="render-viewport-image" src="" alt="Card" class="w-full h-auto max-h-[380px] object-contain rounded-md shadow-2xl bg-gray-950 border border-gray-800/60">
+            </div>
+            <div class="w-full bg-[#0d0d10] border border-gray-800/60 rounded-lg p-3 text-xs flex flex-col gap-2">
+                <div class="flex justify-between items-center border-b border-gray-900 pb-2 gap-2">
+                    <span id="render-viewport-subname" class="font-semibold text-gray-400 text-[11px] tracking-wide shrink-0">Descriptors</span>
+                    <div id="render-viewport-type-container" class="flex flex-wrap gap-1.5 justify-end flex-1"></div>
+                </div>
+                <div id="render-viewport-archetype-box" class="text-[10px] font-mono text-cyan-400 border border-cyan-950/60 bg-cyan-950/20 px-2 py-1 rounded hidden">
+                    Archetype: <span id="render-viewport-archetype" class="font-bold text-gray-300">None</span>
+                </div>
+                <div id="render-viewport-stats" class="text-[11px] font-mono font-bold text-yellow-500/90">ATK/ 0 &nbsp; DEF/ 0</div>
+                <p id="render-viewport-text" class="text-gray-300 text-[11px] leading-relaxed break-words whitespace-normal overflow-y-auto max-h-40 pr-1">Card text.</p>
+            </div>
+        </div>
+
+        <!-- Sidebar filters -->
+        <div class="bg-[#141417] border border-gray-800 p-4 rounded-xl space-y-4 shadow-sm">
+            <h3 class="text-xs uppercase font-bold tracking-widest text-gray-400 pb-1.5 border-b border-gray-800">Filters</h3>
+            <div class="space-y-1 relative">
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Card Name</label>
+                <input type="text" id="filter-name" oninput="handleCardNameAutocomplete()" placeholder="Search by name…" class="w-full bg-[#0d0d10] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]" autocomplete="off">
+                <div id="name-autocomplete-dropdown" class="absolute left-0 right-0 top-[54px] bg-[#0d0d10] border border-gray-800 rounded-lg max-h-36 overflow-y-auto hidden z-50 divide-y divide-gray-950 shadow-2xl"></div>
+            </div>
+            <div class="space-y-1.5">
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Card Effect Keywords <span class="text-gray-600 font-normal normal-case">(AND)</span></label>
+                <div id="effect-tags-container" class="flex flex-wrap gap-1.5 min-h-[20px]"></div>
+                <div class="flex gap-1.5">
+                    <input type="text" id="filter-effect-input" placeholder='Keyword then Enter…' class="flex-1 bg-[#0d0d10] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]" autocomplete="off" onkeydown="handleEffectKeydown(event)">
+                    <button onclick="addEffectTag()" class="px-2.5 py-1.5 bg-cyan-950 border border-cyan-800 text-[#00ecda] rounded-lg text-xs font-bold hover:bg-cyan-900 cursor-pointer">+</button>
+                </div>
+            </div>
+            <div id="outside-usecase-container" class="space-y-1 hidden">
+                <label class="text-[10px] font-bold text-gray-500 uppercase">Use Case</label>
+                <select id="filter-usecase" onchange="applyFilterMatrix()" class="w-full bg-[#0d0d10] border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]">
+                    <option value="ALL">All Categories</option>
+                </select>
+            </div>
+            <div class="flex gap-2 pt-1">
+                <button onclick="openAdvancedFilterModal()" class="flex-1 text-xs font-bold tracking-wider uppercase bg-cyan-950 text-[#00ecda] border border-cyan-800 rounded-lg py-2.5 hover:bg-cyan-900 cursor-pointer">Advanced Filters</button>
+                <button onclick="resetSlicers()" title="Reset All" class="w-10 h-10 flex items-center justify-center text-sm font-bold bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 cursor-pointer">↺</button>
+            </div>
+        </div>
+
+        <!-- Suggest a staple -->
+        <div id="suggestion-box-panel" class="bg-[#141417] border border-gray-800 p-4 rounded-xl space-y-3 shadow-sm hidden">
+            <div class="pb-1.5 border-b border-gray-800 flex justify-between items-center">
+                <h3 class="text-xs uppercase font-bold tracking-widest text-cyan-400">Suggest a Staple</h3>
+                <span id="suggestion-count-badge" class="text-[10px] font-mono bg-cyan-950/60 text-cyan-400 border border-cyan-900/50 px-2 py-0.5 rounded">0 queued</span>
+            </div>
+            <div class="space-y-1 relative">
+                <label class="text-[9px] font-bold text-gray-400 uppercase">Card Name</label>
+                <input type="text" id="submit-card-name" oninput="handleAutocompleteSearch()" placeholder="Search…" class="w-full bg-[#0d0d10] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]" autocomplete="off">
+                <div id="autocomplete-dropdown" class="absolute left-0 right-0 top-[52px] bg-[#0d0d10] border border-gray-800 rounded-lg max-h-36 overflow-y-auto hidden z-50 divide-y divide-gray-950 shadow-2xl"></div>
+            </div>
+            <div class="space-y-1">
+                <label class="text-[9px] font-bold text-gray-400 uppercase">Use Case</label>
+                <select id="submit-use-case" onchange="checkDuplicateSubmission()" class="w-full bg-[#0d0d10] border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]"></select>
+            </div>
+            <div id="submit-duplicate-msg" class="hidden text-[10px] font-mono text-yellow-400 bg-yellow-950/30 border border-yellow-900/40 px-2 py-1.5 rounded"></div>
+            <button onclick="handleStapleSubmission()" class="w-full text-[10px] font-bold tracking-widest uppercase bg-[#00ecda] text-gray-900 rounded-lg py-2 hover:bg-cyan-400 cursor-pointer">Add to Queue</button>
+            <div id="suggestion-queue-container" class="hidden space-y-1.5">
+                <div class="flex justify-between items-center pt-1 border-t border-gray-800">
+                    <label class="text-[9px] font-bold text-gray-400 uppercase">Queued</label>
+                    <div class="flex gap-2">
+                        <button onclick="exportSuggestionsCSV()" class="text-[9px] font-bold uppercase px-2 py-1 bg-emerald-950/60 text-emerald-400 border border-emerald-900/50 rounded hover:bg-emerald-900/40 cursor-pointer">Export CSV</button>
+                        <button onclick="clearSuggestionsAdmin()" class="text-[9px] font-bold uppercase px-2 py-1 bg-red-950/60 text-red-400 border border-red-900/50 rounded hover:bg-red-900/40 cursor-pointer">Clear All</button>
+                    </div>
+                </div>
+                <div id="suggestion-queue-list" class="space-y-1 max-h-40 overflow-y-auto pr-1"></div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<!-- ADVANCED FILTER MODAL -->
+<div id="advanced-filter-modal" class="fixed inset-0 z-50 bg-black/80 flex items-start sm:items-center justify-center p-2 sm:p-4 hidden overflow-auto">
+    <div class="bg-[#141417] border border-gray-800 rounded-xl max-w-3xl w-full max-h-[95vh] sm:max-h-[88vh] flex flex-col shadow-2xl">
+        <div class="px-5 py-3.5 border-b border-gray-800 bg-[#18181c] flex justify-between items-center shrink-0">
+            <div class="flex items-center gap-2">
+                <div class="h-2 w-2 rounded-full bg-[#00ecda]"></div>
+                <h3 class="text-xs uppercase font-bold tracking-widest text-gray-300">Advanced Filters</h3>
+            </div>
+            <button onclick="closeAdvancedFilterModal()" class="text-gray-400 hover:text-white text-xs font-bold bg-gray-800/60 hover:bg-gray-800 px-2 py-1 rounded">✕ Close</button>
+        </div>
+
+        <div class="p-4 overflow-y-auto space-y-4 text-xs">
+
+            <!-- GENERAL -->
+            <section class="bg-[#0d0d10]/60 border border-gray-800/70 rounded-xl p-4 space-y-4">
+                <h4 class="text-[10px] uppercase font-bold tracking-widest text-[#00ecda]">General</h4>
+
+                <!-- Set OR tags -->
+                <div class="space-y-1.5 relative">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Set Name <span class="text-gray-600 font-normal normal-case">(OR)</span></label>
+                    <div id="filter-set-tags" class="flex flex-wrap gap-1.5 min-h-[18px]"></div>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="filter-set-input" oninput="handleSetAutocomplete()" placeholder="Search sets, press Enter…" class="flex-1 bg-[#111114] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();commitTag('filter-set-input','set',distinctSetNames);}">
+                        <button onclick="commitTag('filter-set-input','set',distinctSetNames)" class="px-2.5 py-1.5 bg-[#111114] border border-gray-700 text-gray-400 rounded-lg text-xs font-bold hover:border-[#00ecda] hover:text-[#00ecda] cursor-pointer">+</button>
+                    </div>
+                    <div id="set-autocomplete-dropdown" class="absolute left-0 right-0 bg-[#0d0d10] border border-gray-800 rounded-lg max-h-32 overflow-y-auto hidden z-50 divide-y divide-gray-950 shadow-2xl" style="top:calc(100% - 4px)"></div>
+                </div>
+
+                <!-- Rarity OR tags -->
+                <div class="space-y-1.5 relative">
+                    <label class="text-[10px] font-bold text-gray-500 uppercase">Rarity <span class="text-gray-600 font-normal normal-case">(OR)</span></label>
+                    <div id="filter-rarity-tags" class="flex flex-wrap gap-1.5 min-h-[18px]"></div>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="filter-rarity-input" oninput="handleRarityAutocomplete()" placeholder="e.g. Secret Rare, press Enter…" class="flex-1 bg-[#111114] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();commitTag('filter-rarity-input','rarity',distinctRarities);}">
+                        <button onclick="commitTag('filter-rarity-input','rarity',distinctRarities)" class="px-2.5 py-1.5 bg-[#111114] border border-gray-700 text-gray-400 rounded-lg text-xs font-bold hover:border-[#00ecda] hover:text-[#00ecda] cursor-pointer">+</button>
+                    </div>
+                    <div id="rarity-autocomplete-dropdown" class="absolute left-0 right-0 bg-[#0d0d10] border border-gray-800 rounded-lg max-h-32 overflow-y-auto hidden z-50 divide-y divide-gray-950 shadow-2xl" style="top:calc(100% - 4px)"></div>
+                </div>
+
+                <!-- Archetype OR tags -->
+                <div class="space-y-1.5 relative">
+                    <label class="text-[10px] font-bold text-purple-400 uppercase">Archetype <span class="text-gray-600 font-normal normal-case">(OR)</span></label>
+                    <div id="filter-archetype-tags" class="flex flex-wrap gap-1.5 min-h-[18px]"></div>
+                    <div class="flex gap-1.5">
+                        <input type="text" id="filter-archetype-input" oninput="handleArchetypeAutocomplete()" placeholder="e.g. Blue-Eyes, press Enter…" class="flex-1 bg-[#111114] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-purple-600" autocomplete="off" onkeydown="if(event.key==='Enter'){event.preventDefault();commitTag('filter-archetype-input','archetype',distinctArchetypes);}">
+                        <button onclick="commitTag('filter-archetype-input','archetype',distinctArchetypes)" class="px-2.5 py-1.5 bg-[#111114] border border-gray-700 text-gray-400 rounded-lg text-xs font-bold hover:border-purple-500 hover:text-purple-400 cursor-pointer">+</button>
+                    </div>
+                    <div id="archetype-autocomplete-dropdown" class="absolute left-0 right-0 bg-[#0d0d10] border border-gray-800 rounded-lg max-h-40 overflow-y-auto hidden z-50 divide-y divide-gray-950 shadow-2xl" style="top:calc(100% - 4px)"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-cyan-400 uppercase">Genesys Points</label>
+                        <div class="flex gap-2">
+                            <input type="number" id="filter-points-min" placeholder="Min" oninput="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white text-center font-mono focus:outline-none focus:border-[#00ecda]">
+                            <input type="number" id="filter-points-max" placeholder="Max" oninput="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white text-center font-mono focus:outline-none focus:border-[#00ecda]">
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Year Range</label>
+                        <div class="flex gap-2">
+                            <div class="relative flex-1">
+                                <input type="text" id="filter-year-start" placeholder="From" oninput="handleYearAutocomplete('filter-year-start','year-start-dropdown')" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white text-center font-mono focus:outline-none focus:border-[#00ecda]" autocomplete="off">
+                                <div id="year-start-dropdown" class="absolute left-0 right-0 top-full bg-[#0d0d10] border border-gray-800 rounded-lg max-h-28 overflow-y-auto hidden z-50 divide-y divide-gray-950"></div>
+                            </div>
+                            <div class="relative flex-1">
+                                <input type="text" id="filter-year-end" placeholder="To" oninput="handleYearAutocomplete('filter-year-end','year-end-dropdown')" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-2 py-1.5 text-xs text-white text-center font-mono focus:outline-none focus:border-[#00ecda]" autocomplete="off">
+                                <div id="year-end-dropdown" class="absolute left-0 right-0 top-full bg-[#0d0d10] border border-gray-800 rounded-lg max-h-28 overflow-y-auto hidden z-50 divide-y divide-gray-950"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Banlist pills -->
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Banlist Status</label>
+                        <button onclick="toggleAllPills('banlist-pills',filterState.banlist,BANLIST_OPTS,'pill-ban')" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="banlist-pills" class="flex flex-wrap gap-1.5"></div>
+                </div>
+            </section>
+
+            <!-- CARD TYPE -->
+            <section class="bg-[#0d0d10]/60 border border-gray-800/70 rounded-xl p-4 space-y-4">
+                <h4 class="text-[10px] uppercase font-bold tracking-widest text-amber-500">Card Type</h4>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Core Type</label>
+                        <button onclick="toggleAllPills('core-type-pills',filterState.coreType,CORE_TYPE_OPTS,'pill-type')" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="core-type-pills" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Monster Sub-Type</label>
+                        <button onclick="toggleAllPills('monster-sub-pills',filterState.monsterSub,MONSTER_SUB_OPTS,'pill-sub')" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="monster-sub-pills" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Monster Genre <span class="text-gray-600 font-normal normal-case">(AND — must match all selected)</span></label>
+                        <button onclick="toggleAllPills('monster-genre-pills',filterState.monsterGenre,GENRE_OPTS,'pill-genre')" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="monster-genre-pills" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Spell Sub-Type</label>
+                        <button onclick="toggleAllPills('spell-sub-pills',filterState.spellSub,SPELL_SUB_OPTS,'pill-spell')" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="spell-sub-pills" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Trap Sub-Type</label>
+                        <button onclick="toggleAllPills('trap-sub-pills',filterState.trapSub,TRAP_SUB_OPTS,'pill-trap')" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="trap-sub-pills" class="flex flex-wrap gap-1.5"></div>
+                </div>
+            </section>
+
+            <!-- MONSTER -->
+            <section class="bg-[#0d0d10]/60 border border-gray-800/70 rounded-xl p-4 space-y-4">
+                <h4 class="text-[10px] uppercase font-bold tracking-widest text-yellow-500/90">Monster</h4>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Attribute</label>
+                        <button onclick="toggleAllPills('attribute-pills',filterState.attribute,ATTRIBUTE_OPTS,'pill-attr')" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="attribute-pills" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Type (Race)</label>
+                        <button onclick="toggleAllRacePills()" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="race-pills" class="flex flex-wrap gap-1.5"></div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">ATK Range</label>
+                        <div class="flex gap-1.5">
+                            <input type="number" id="filter-atk-min" placeholder="Min" oninput="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-2 py-1 text-xs text-white text-center font-mono focus:outline-none focus:border-[#00ecda]">
+                            <input type="number" id="filter-atk-max" placeholder="Max" oninput="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-2 py-1 text-xs text-white text-center font-mono focus:outline-none focus:border-[#00ecda]">
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">DEF Range</label>
+                        <div class="flex gap-1.5">
+                            <input type="number" id="filter-def-min" placeholder="Min" oninput="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-2 py-1 text-xs text-white text-center font-mono focus:outline-none focus:border-[#00ecda]">
+                            <input type="number" id="filter-def-max" placeholder="Max" oninput="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-2 py-1 text-xs text-white text-center font-mono focus:outline-none focus:border-[#00ecda]">
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-gray-500 uppercase">Level</label>
+                        <div class="flex gap-1.5">
+                            <select id="filter-level-min" onchange="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-1 py-1 text-xs text-white font-mono focus:outline-none focus:border-[#00ecda]"><option value="ALL">Min</option></select>
+                            <select id="filter-level-max" onchange="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-1 py-1 text-xs text-white font-mono focus:outline-none focus:border-[#00ecda]"><option value="ALL">Max</option></select>
+                        </div>
+                    </div>
+                    <div class="space-y-1">
+                        <label class="text-[10px] font-bold text-orange-400 uppercase">Pend. Scale</label>
+                        <div class="flex gap-1.5">
+                            <select id="filter-scale-min" onchange="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-1 py-1 text-xs text-white font-mono focus:outline-none focus:border-[#00ecda]"><option value="ALL">Min</option></select>
+                            <select id="filter-scale-max" onchange="applyFilterMatrix()" class="w-full bg-[#111114] border border-gray-700 rounded-lg px-1 py-1 text-xs text-white font-mono focus:outline-none focus:border-[#00ecda]"><option value="ALL">Max</option></select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-[10px] font-bold text-[#00ecda] uppercase">Link Markers</label>
+                        <button onclick="toggleAllPills('link-markers-pill-grid',filterState.linkMarker,LINK_MARKER_OPTS,'pill-marker')" class="text-[10px] font-bold px-3 py-1 bg-gray-800 border border-gray-700 text-gray-300 rounded-lg hover:bg-gray-700 hover:border-gray-500 cursor-pointer">Select All</button>
+                    </div>
+                    <div id="link-markers-pill-grid" class="flex flex-wrap gap-1.5"></div>
+                </div>
+            </section>
+        </div>
+
+        <div class="px-5 py-3 border-t border-gray-800 bg-[#111114] flex justify-end shrink-0">
+            <button onclick="closeAdvancedFilterModal()" class="text-xs px-5 py-2 font-bold tracking-wider uppercase bg-[#00ecda] text-gray-900 rounded-lg hover:bg-cyan-400 cursor-pointer">Apply</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════════
+// STATE
+// ════════════════════════════════════════════════════
+let rawDataset=[],autocompletePool=[],distinctSetNames=[],
+    distinctRarities=[],distinctYears=[],distinctArchetypes=[],allRaceOptions=[];
+let currentTab="main-view",sortField="",sortDirection="desc";
+let selectedActiveCardObject=null,detailSortField="",detailSortDirection="desc";
+let effectKeywordTags=[],currentRenderedSlice=[];
+const tagFilters={set:[],rarity:[],archetype:[]};
+
+// Separated sub-type filter state
+const filterState={
+    banlist:    new Set(),
+    coreType:   new Set(),
+    monsterSub: new Set(),  // OR — Normal Monster / Effect / Ritual / Fusion / Synchro / Xyz / Link / Pendulum* / Token
+    monsterGenre: new Set(),// AND — Flip / Gemini / Spirit / Toon / Tuner / Union
+    spellSub:   new Set(),  // OR — Normal Spell / Continuous Spell / etc.
+    trapSub:    new Set(),  // OR — Normal Trap / Continuous Trap / Counter Trap
+    attribute:  new Set(),
+    race:       new Set(),
+    linkMarker: new Set(),
+};
+
+const BANLIST_OPTS     = ["Unlimited","Limited","Semi-Limited","Forbidden"];
+const CORE_TYPE_OPTS   = ["Monster","Spell","Trap","Skill"];
+const MONSTER_SUB_OPTS = [
+    "Normal Monster","Effect Monster","Ritual Monster","Fusion Monster","Synchro Monster",
+    "Xyz Monster","Link Monster","Pendulum Monster","Pendulum Normal Monster",
+    "Pendulum Effect Monster","Pendulum Fusion Monster","Pendulum Synchro Monster",
+    "Pendulum Xyz Monster","Pendulum Ritual Monster","Token",
+];
+const GENRE_OPTS       = ["Flip","Gemini","Spirit","Toon","Tuner","Union"];
+const SPELL_SUB_OPTS   = ["Normal Spell","Continuous Spell","Equip Spell","Field Spell","Quick-Play Spell","Ritual Spell"];
+const TRAP_SUB_OPTS    = ["Normal Trap","Continuous Trap","Counter Trap"];
+const ATTRIBUTE_OPTS   = ["LIGHT","DARK","WATER","FIRE","EARTH","WIND","DIVINE"];
+const LINK_MARKER_OPTS = ["Top","Bottom","Left","Right","Top-Left","Top-Right","Bottom-Left","Bottom-Right"];
+
+const ADMIN_PASSWORD = "ygo2025";
+let suggestionQueue = JSON.parse(localStorage.getItem('ygo_suggestions')||'[]');
+
+// ════════════════════════════════════════════════════
+// PILL FACTORY
+// ════════════════════════════════════════════════════
+function buildPills(containerId,options,stateSet,pillClass){
+    const c=document.getElementById(containerId);if(!c)return;
+    c.innerHTML="";
+    options.forEach(opt=>{
+        const btn=document.createElement('button');
+        btn.className=`pill-btn ${pillClass} ${stateSet.has(opt)?'on':'off'}`;
+        btn.textContent=opt;
+        btn.onclick=()=>{stateSet.has(opt)?stateSet.delete(opt):stateSet.add(opt);btn.className=`pill-btn ${pillClass} ${stateSet.has(opt)?'on':'off'}`;applyFilterMatrix();};
+        c.appendChild(btn);
+    });
+}
+function toggleAllPills(cid,stateSet,options,pillClass){
+    const allOn=options.every(o=>stateSet.has(o));
+    allOn?stateSet.clear():options.forEach(o=>stateSet.add(o));
+    buildPills(cid,options,stateSet,pillClass);applyFilterMatrix();
+}
+function toggleAllRacePills(){
+    const allOn=allRaceOptions.every(o=>filterState.race.has(o));
+    allOn?filterState.race.clear():allRaceOptions.forEach(o=>filterState.race.add(o));
+    buildPills('race-pills',allRaceOptions,filterState.race,'pill-race');applyFilterMatrix();
+}
+function refreshStaticPills(){
+    buildPills('banlist-pills',          BANLIST_OPTS,     filterState.banlist,     'pill-ban');
+    buildPills('core-type-pills',        CORE_TYPE_OPTS,   filterState.coreType,    'pill-type');
+    buildPills('monster-sub-pills',      MONSTER_SUB_OPTS, filterState.monsterSub,  'pill-sub');
+    buildPills('monster-genre-pills',    GENRE_OPTS,       filterState.monsterGenre,'pill-genre');
+    buildPills('spell-sub-pills',        SPELL_SUB_OPTS,   filterState.spellSub,    'pill-spell');
+    buildPills('trap-sub-pills',         TRAP_SUB_OPTS,    filterState.trapSub,     'pill-trap');
+    buildPills('attribute-pills',        ATTRIBUTE_OPTS,   filterState.attribute,   'pill-attr');
+    buildPills('link-markers-pill-grid', LINK_MARKER_OPTS, filterState.linkMarker,  'pill-marker');
+}
+
+// ════════════════════════════════════════════════════
+// OR TAG FILTERS
+// ════════════════════════════════════════════════════
+const TAG_COLORS={
+    set:      {chip:'bg-[#0d1a10] border-[#166534] text-emerald-400',x:'text-emerald-700 hover:text-emerald-300'},
+    rarity:   {chip:'bg-[#1a120d] border-[#92400e] text-amber-400',  x:'text-amber-700 hover:text-amber-300'},
+    archetype:{chip:'bg-[#13091a] border-[#6b21a8] text-purple-400', x:'text-purple-700 hover:text-purple-300'},
+};
+// Commit a tag from input — optionally fuzzy-match to pool
+function commitTag(inputId,type,pool){
+    const input=document.getElementById(inputId);
+    let raw=input.value.trim();if(!raw)return;
+    // If pool given, try to find exact match (case-insensitive)
+    if(pool){const match=pool.find(p=>p.toLowerCase()===raw.toLowerCase());if(match)raw=match;}
+    if(tagFilters[type].some(t=>t.toLowerCase()===raw.toLowerCase())){input.value="";document.getElementById(inputId.replace('-input','-autocomplete-dropdown').replace('filter-','').replace('-input',''))?.classList.add('hidden');return;}
+    tagFilters[type].push(raw);input.value="";
+    // hide dropdown
+    const ddId=type==='set'?'set-autocomplete-dropdown':type==='rarity'?'rarity-autocomplete-dropdown':'archetype-autocomplete-dropdown';
+    document.getElementById(ddId)?.classList.add('hidden');
+    renderTagFilter(type);applyFilterMatrix();
+}
+function removeTag(type,i){tagFilters[type].splice(i,1);renderTagFilter(type);applyFilterMatrix();}
+function renderTagFilter(type){
+    const c=document.getElementById(`filter-${type}-tags`);if(!c)return;
+    const{chip,x}=TAG_COLORS[type];c.innerHTML="";
+    tagFilters[type].forEach((tag,i)=>{
+        const span=document.createElement('span');
+        span.className=`tag-chip border ${chip}`;
+        span.innerHTML=`${esc(tag)}<button onclick="removeTag('${type}',${i})" class="${x} font-bold leading-none cursor-pointer ml-0.5">✕</button>`;
+        c.appendChild(span);
+    });
+}
+
+// ════════════════════════════════════════════════════
+// INIT
+// ════════════════════════════════════════════════════
+function initDashboardEngine(){
+    if(typeof ygoLocalDatabase==='undefined'){alert("Data file unreadable.");return;}
+    rawDataset=ygoLocalDatabase.cards;autocompletePool=ygoLocalDatabase.autocomplete_pool||[];
+    const sets=new Set(),rarities=new Set(),years=new Set(),races=new Set(),archetypes=new Set();
+    rawDataset.forEach(c=>{
+        if(c.latest_set_name)sets.add(c.latest_set_name);
+        if(c.latest_printing_date?.length>=4)years.add(c.latest_printing_date.substring(0,4));
+        c.all_prints?.forEach(p=>{if(p.rarity)rarities.add(p.rarity);});
+        if(c.type?.toLowerCase().includes("monster")&&c.race)races.add(c.race);
+        if(c.archetype)archetypes.add(c.archetype);
+    });
+    distinctSetNames=[...sets].sort();distinctRarities=[...rarities].sort();
+    distinctYears=[...years].sort((a,b)=>b-a);distinctArchetypes=[...archetypes].sort();
+    allRaceOptions=[...races].sort();
+    buildPills('race-pills',allRaceOptions,filterState.race,'pill-race');
+    for(let i=0;i<=13;i++){
+        ['filter-level-min','filter-level-max','filter-scale-min','filter-scale-max'].forEach(id=>{
+            document.getElementById(id).innerHTML+=`<option value="${i}">${i}</option>`;
+        });
+    }
+    refreshStaticPills();generateDynamicUseCases();renderSuggestionQueue();applyFilterMatrix();
+}
+function generateDynamicUseCases(){
+    const casesSet=new Set();
+    rawDataset.forEach(c=>{if(c.is_staple&&c.use_case)c.use_case.split(',').forEach(item=>{const t=item.trim();if(t)casesSet.add(t);});});
+    const sorted=[...casesSet].sort();
+    const fd=document.getElementById('filter-usecase'),sd=document.getElementById('submit-use-case');
+    fd.innerHTML='<option value="ALL">All Categories</option>';sd.innerHTML='';
+    sorted.forEach(cat=>{fd.innerHTML+=`<option value="${cat}">${cat}</option>`;sd.innerHTML+=`<option value="${cat}">${cat}</option>`;});
+}
+
+// ════════════════════════════════════════════════════
+// PAGE SWITCH
+// ════════════════════════════════════════════════════
+function switchPage(id){
+    currentTab=id;selectedActiveCardObject=null;detailSortField="";detailSortDirection="desc";
+    closeRenderViewport();updateDetailSortIndicators();
+    document.getElementById('selected-card-title').innerText="No Card Selected";
+    document.getElementById('detail-table-body').innerHTML=`<tr><td colspan="5" class="p-6 text-center text-gray-600 italic">Click a card row above.</td></tr>`;
+    const isMain=id==='main-view';
+    document.getElementById('page-main-view').classList.toggle('hidden',!isMain);
+    document.getElementById('page-staple-tracker').classList.toggle('hidden',isMain);
+    document.getElementById('suggestion-box-panel').classList.toggle('hidden',isMain);
+    document.getElementById('outside-usecase-container').classList.toggle('hidden',isMain);
+    document.getElementById('btn-page1').className=`text-xs px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium transition cursor-pointer ${isMain?'bg-[#00ecda] text-gray-900':'text-gray-400 hover:text-white'}`;
+    document.getElementById('btn-page2').className=`text-xs px-3 sm:px-4 py-1.5 sm:py-2 rounded-md font-medium transition cursor-pointer ${!isMain?'bg-[#00ecda] text-gray-900':'text-gray-400 hover:text-white'}`;
+    applyFilterMatrix();
+}
+function openAdvancedFilterModal(){document.getElementById('advanced-filter-modal').classList.remove('hidden');}
+function closeAdvancedFilterModal(){document.getElementById('advanced-filter-modal').classList.add('hidden');}
+
+// ════════════════════════════════════════════════════
+// SORT
+// ════════════════════════════════════════════════════
+function handleSortField(f){
+    if(sortField===f){sortDirection=sortDirection==="desc"?"asc":(sortField="","desc");}else{sortField=f;sortDirection="desc";}
+    updateSortIndicators();applyFilterMatrix();
+}
+function updateSortIndicators(){
+    ['name','latest_set_name','latest_printing_date','total_printings','rarity_count','genesys_points','tcg_price','cm_price'].forEach(f=>{
+        const a=document.getElementById('sort-icon-'+f),b=document.getElementById('sort-icon-staple-'+f);
+        if(a)a.innerText="↕";if(b)b.innerText="↕";
+    });
+    if(sortField){const id=currentTab==='main-view'?'sort-icon-'+sortField:'sort-icon-staple-'+sortField;const el=document.getElementById(id);if(el)el.innerText=sortDirection==="desc"?"▼":"▲";}
+}
+function handleDetailSortField(f){
+    if(!selectedActiveCardObject)return;
+    if(detailSortField===f){detailSortDirection=detailSortDirection==="desc"?"asc":(detailSortField="","desc");}else{detailSortField=f;detailSortDirection="desc";}
+    updateDetailSortIndicators();renderDetailRarityTable(selectedActiveCardObject,true);
+}
+function updateDetailSortIndicators(){
+    ['rarity','set_name','release_date'].forEach(f=>{const el=document.getElementById('sort-icon-detail-'+f);if(el)el.innerText="↕";});
+    if(detailSortField){const el=document.getElementById('sort-icon-detail-'+detailSortField);if(el)el.innerText=detailSortDirection==="desc"?"▼":"▲";}
+}
+
+// ════════════════════════════════════════════════════
+// EFFECT TAGS
+// ════════════════════════════════════════════════════
+function handleEffectKeydown(e){if(e.key==='Enter'){e.preventDefault();addEffectTag();}}
+function addEffectTag(){
+    const input=document.getElementById('filter-effect-input'),raw=input.value.trim();if(!raw)return;
+    if(effectKeywordTags.some(t=>t.toLowerCase()===raw.toLowerCase())){input.value="";return;}
+    effectKeywordTags.push(raw);input.value="";renderEffectTags();applyFilterMatrix();
+}
+function removeEffectTag(i){effectKeywordTags.splice(i,1);renderEffectTags();applyFilterMatrix();}
+function renderEffectTags(){
+    const c=document.getElementById('effect-tags-container');c.innerHTML="";
+    effectKeywordTags.forEach((tag,i)=>{
+        const span=document.createElement('span');
+        span.className="tag-chip border bg-purple-950/60 border-purple-800/60 text-purple-300";
+        span.innerHTML=`${esc(tag)}<button onclick="removeEffectTag(${i})" class="text-purple-500 hover:text-purple-200 font-bold leading-none cursor-pointer ml-0.5">✕</button>`;
+        c.appendChild(span);
+    });
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+// ════════════════════════════════════════════════════
+// AUTOCOMPLETE
+// ════════════════════════════════════════════════════
+function acDrop(inputId,dropdownId,pool,hoverCls,onPick){
+    const val=document.getElementById(inputId).value.toLowerCase().trim();
+    const dd=document.getElementById(dropdownId);dd.innerHTML="";
+    if(!val){dd.classList.add('hidden');return;}
+    const matches=pool.filter(n=>n.toLowerCase().includes(val)).slice(0,12);
+    if(!matches.length){dd.classList.add('hidden');return;}
+    matches.forEach(m=>{
+        const d=document.createElement('div');
+        d.className=`p-2.5 text-xs font-semibold ${hoverCls} transition cursor-pointer text-gray-300`;
+        d.innerText=m;d.onclick=()=>{document.getElementById(inputId).value=m;dd.classList.add('hidden');if(onPick)onPick(m);else applyFilterMatrix();};
+        dd.appendChild(d);
+    });
+    dd.classList.remove('hidden');
+}
+function handleCardNameAutocomplete(){acDrop('filter-name','name-autocomplete-dropdown',autocompletePool,'hover:bg-[#00ecda] hover:text-gray-900');}
+function handleSetAutocomplete()     {acDrop('filter-set-input','set-autocomplete-dropdown',distinctSetNames,'hover:bg-[#00ecda] hover:text-gray-900',m=>{document.getElementById('filter-set-input').value=m;commitTag('filter-set-input','set',distinctSetNames);});}
+function handleRarityAutocomplete()  {acDrop('filter-rarity-input','rarity-autocomplete-dropdown',distinctRarities,'hover:bg-[#00ecda] hover:text-gray-900',m=>{document.getElementById('filter-rarity-input').value=m;commitTag('filter-rarity-input','rarity',distinctRarities);});}
+function handleArchetypeAutocomplete(){acDrop('filter-archetype-input','archetype-autocomplete-dropdown',distinctArchetypes,'hover:bg-purple-900/60 hover:text-purple-200',m=>{document.getElementById('filter-archetype-input').value=m;commitTag('filter-archetype-input','archetype',distinctArchetypes);});}
+function handleYearAutocomplete(inputId,ddId){acDrop(inputId,ddId,distinctYears,'hover:bg-[#00ecda] hover:text-gray-900');}
+function handleAutocompleteSearch()  {acDrop('submit-card-name','autocomplete-dropdown',autocompletePool,'hover:bg-[#00ecda] hover:text-gray-900',()=>checkDuplicateSubmission());}
+
+// ════════════════════════════════════════════════════
+// SUB-TYPE MATCHING
+// ════════════════════════════════════════════════════
+function matchesMonsterSub(card,st){
+    // Match against card.type field directly (Effect Monster, Ritual Monster, etc.)
+    const t=card.type||"";
+    const r=card.humanReadableCardType||"";
+    if(st==="Normal Monster") return t.includes("Normal Monster")||r.includes("Normal Monster");
+    if(st==="Effect Monster")  return t==="Effect Monster"; // strict — base effect, not subtypes
+    if(st==="Token")           return t.includes("Token");
+    // For Pendulum variants and others, check humanReadableCardType contains all words
+    if(st.startsWith("Pendulum")) return st.split(" ").every(w=>r.includes(w));
+    // Other structured types: Ritual Monster, Fusion Monster, etc.
+    return t.includes(st)||r.includes(st.replace(" Monster",""));
+}
+
+// ════════════════════════════════════════════════════
+// MAIN FILTER
+// ════════════════════════════════════════════════════
+function applyFilterMatrix(){
+    const nameQuery=document.getElementById('filter-name').value.toLowerCase().trim();
+    const useCaseQuery=document.getElementById('filter-usecase').value;
+    const syv=document.getElementById('filter-year-start').value;const startYear=syv?parseInt(syv):null;
+    const eyv=document.getElementById('filter-year-end').value;const endYear=eyv?parseInt(eyv):null;
+    const pmin=document.getElementById('filter-points-min').value;const minPoints=pmin!==""?parseInt(pmin):null;
+    const pmax=document.getElementById('filter-points-max').value;const maxPoints=pmax!==""?parseInt(pmax):null;
+    const amin=document.getElementById('filter-atk-min').value;const minAtk=amin!==""?parseInt(amin):null;
+    const amax=document.getElementById('filter-atk-max').value;const maxAtk=amax!==""?parseInt(amax):null;
+    const dmin=document.getElementById('filter-def-min').value;const minDef=dmin!==""?parseInt(dmin):null;
+    const dmax=document.getElementById('filter-def-max').value;const maxDef=dmax!==""?parseInt(dmax):null;
+    const lmin=document.getElementById('filter-level-min').value;const minLvl=lmin!=="ALL"?parseInt(lmin):null;
+    const lmax=document.getElementById('filter-level-max').value;const maxLvl=lmax!=="ALL"?parseInt(lmax):null;
+    const smin=document.getElementById('filter-scale-min').value;const minScl=smin!=="ALL"?parseInt(smin):null;
+    const smax=document.getElementById('filter-scale-max').value;const maxScl=smax!=="ALL"?parseInt(smax):null;
+    const effectLower=effectKeywordTags.map(t=>t.toLowerCase());
+    const setTags=tagFilters.set.map(t=>t.toLowerCase());
+    const rarityTags=tagFilters.rarity.map(t=>t.toLowerCase());
+    const archTags=tagFilters.archetype.map(t=>t.toLowerCase());
+
+    const filtered=rawDataset.filter(card=>{
+        if(nameQuery&&!card.name.toLowerCase().includes(nameQuery))return false;
+        if(effectLower.length>0){const dl=(card.desc||"").toLowerCase();if(!effectLower.every(kw=>dl.includes(kw)))return false;}
+        // OR tag filters
+        if(setTags.length>0){
+            const cardSets=(card.all_prints||[]).map(p=>p.set_name.toLowerCase());
+            const latestSet=card.latest_set_name.toLowerCase();
+            if(!setTags.some(st=>cardSets.some(cs=>cs.includes(st))||latestSet.includes(st)))return false;
+        }
+        if(rarityTags.length>0){
+            const cardRarities=(card.all_prints||[]).map(p=>p.rarity.toLowerCase());
+            if(!rarityTags.some(rt=>cardRarities.some(cr=>cr.includes(rt))))return false;
+        }
+        if(archTags.length>0){
+            if(!card.archetype)return false;
+            const al=card.archetype.toLowerCase();
+            if(!archTags.some(at=>al.includes(at)))return false;
+        }
+        if(filterState.banlist.size>0&&!filterState.banlist.has(card.ban_tcg))return false;
+        if(card.latest_printing_date?.length>=4){
+            const y=parseInt(card.latest_printing_date.substring(0,4));
+            if(startYear!==null&&y<startYear)return false;
+            if(endYear!==null&&y>endYear)return false;
+        }else if(startYear!==null||endYear!==null)return false;
+        if(minPoints!==null&&(card.genesys_points??-1)<minPoints)return false;
+        if(maxPoints!==null&&(card.genesys_points??999999)>maxPoints)return false;
+        if(currentTab==='staple-tracker'){
+            if(!card.is_staple)return false;
+            if(useCaseQuery!=="ALL"){const cases=(card.use_case||"").split(',').map(s=>s.trim().toLowerCase());if(!cases.includes(useCaseQuery.toLowerCase()))return false;}
+        }
+        // Core type
+        if(filterState.coreType.size>0){const r=card.humanReadableCardType||"";if(![...filterState.coreType].some(t=>r.includes(t)))return false;}
+        const isMon=card.type?.toLowerCase().includes("monster");
+        // Monster sub-type (OR)
+        if(filterState.monsterSub.size>0){if(!isMon||![...filterState.monsterSub].some(s=>matchesMonsterSub(card,s)))return false;}
+        // Monster genre (AND)
+        if(filterState.monsterGenre.size>0){const r=card.humanReadableCardType||"";if(!isMon||![...filterState.monsterGenre].every(g=>r.includes(g)))return false;}
+        // Spell sub-type (OR)
+        if(filterState.spellSub.size>0){
+            const r=card.humanReadableCardType||"";
+            if(!r.toLowerCase().includes("spell"))return false;
+            if(![...filterState.spellSub].some(s=>r.includes(s.replace(" Spell",""))))return false;
+        }
+        // Trap sub-type (OR)
+        if(filterState.trapSub.size>0){
+            const r=card.humanReadableCardType||"";
+            if(!r.toLowerCase().includes("trap"))return false;
+            if(![...filterState.trapSub].some(s=>r.includes(s.replace(" Trap",""))))return false;
+        }
+        if(filterState.attribute.size>0&&(!isMon||!filterState.attribute.has(card.attribute)))return false;
+        if(filterState.race.size>0&&(!isMon||!filterState.race.has(card.race)))return false;
+        if((minAtk!==null||maxAtk!==null)&&(!isMon||card.atk==null))return false;
+        if(minAtk!==null&&card.atk<minAtk)return false;
+        if(maxAtk!==null&&card.atk>maxAtk)return false;
+        if((minDef!==null||maxDef!==null)&&(!isMon||card.def==null))return false;
+        if(minDef!==null&&card.def<minDef)return false;
+        if(maxDef!==null&&card.def>maxDef)return false;
+        if((minLvl!==null||maxLvl!==null)&&(!isMon||card.level==null))return false;
+        if(minLvl!==null&&card.level<minLvl)return false;
+        if(maxLvl!==null&&card.level>maxLvl)return false;
+        if((minScl!==null||maxScl!==null)&&(!isMon||card.scale==null))return false;
+        if(minScl!==null&&card.scale<minScl)return false;
+        if(maxScl!==null&&card.scale>maxScl)return false;
+        if(filterState.linkMarker.size>0){if(!isMon||!Array.isArray(card.linkmarkers))return false;if(![...filterState.linkMarker].every(m=>card.linkmarkers.includes(m)))return false;}
+        return true;
+    });
+
+    if(sortField){
+        filtered.sort((a,b)=>{
+            let fa=a[sortField],fb=b[sortField];
+            if(['genesys_points','total_printings','tcg_price','cm_price'].includes(sortField)){fa=fa!=null?parseFloat(fa):-999999;fb=fb!=null?parseFloat(fb):-999999;}
+            else{fa=fa?String(fa).toLowerCase():"";fb=fb?String(fb).toLowerCase():"";}
+            const cmp=fa<fb?-1:fa>fb?1:0;return sortDirection==="desc"?-cmp:cmp;
+        });
+    }
+    document.getElementById('kpi-matched-count').innerText=filtered.length.toLocaleString();
+    document.getElementById('kpi-total-printings').innerText=filtered.reduce((s,c)=>s+(c.total_printings||0),0).toLocaleString();
+    document.getElementById('kpi-staples-count').innerText=filtered.filter(c=>c.is_staple).length.toLocaleString();
+    const slice=filtered.slice(0,100);currentRenderedSlice=slice;
+    currentTab==='main-view'?renderMainGrid(slice):renderStaplesGrid(slice);
+}
+
+// ════════════════════════════════════════════════════
+// RENDER
+// ════════════════════════════════════════════════════
+function handleRowSelection(idx){const card=currentRenderedSlice[idx];if(!card)return;renderDetailRarityTable(card);renderCardVisualEngine(card);}
+
+function cardImgSrc(card){return card.image_url_cropped||card.image_url_full||"";}
+function cardImgFallback(card){
+    // if primary was cropped but missing, try full; otherwise nothing
+    return card.image_url_cropped&&card.image_url_full?card.image_url_full:"";
+}
+
+function renderMainGrid(slice){
+    const tbody=document.getElementById('main-table-body');
+    if(!slice.length){tbody.innerHTML=`<tr><td colspan="10" class="p-6 text-center text-gray-500 italic">No records match.</td></tr>`;return;}
+    tbody.innerHTML="";
+    slice.forEach((card,idx)=>{
+        const pts=card.genesys_points!=null?card.genesys_points:'—';
+        const banColor=card.ban_tcg==='Forbidden'?'text-red-500 font-bold':card.ban_tcg==='Limited'?'text-orange-400 font-bold':'text-gray-400';
+        const primary=cardImgSrc(card),fallback=cardImgFallback(card);
+        const tr=document.createElement('tr');
+        tr.className="hover:bg-gray-800/40 transition border-b border-gray-900 cursor-pointer select-none text-xs";
+        tr.onclick=()=>handleRowSelection(idx);
+        const img=document.createElement('img');
+        img.src=primary;img.className="h-8 w-8 object-cover rounded border border-gray-800";
+        if(fallback)img.onerror=function(){this.onerror=null;this.src=fallback;};
+        else img.onerror=function(){this.onerror=null;this.style.background='#1f2937';};
+        const imgTd=document.createElement('td');imgTd.className="p-1.5";imgTd.appendChild(img);
+        tr.appendChild(imgTd);
+        tr.innerHTML+=`
+            <td class="p-2 font-bold text-white whitespace-normal break-words pr-2 leading-tight">${esc(card.name)}</td>
+            <td class="p-2 text-gray-300 whitespace-normal break-words pr-2 hidden sm:table-cell">${esc(card.latest_set_name)}</td>
+            <td class="p-2 font-mono text-gray-400 whitespace-nowrap hidden md:table-cell">${card.latest_printing_date}</td>
+            <td class="p-2 font-mono text-center text-gray-300 font-bold hidden md:table-cell">${card.total_printings}</td>
+            <td class="p-2 font-mono text-center text-yellow-500 hidden lg:table-cell">${card.rarity_count}</td>
+            <td class="p-2 font-mono text-center text-cyan-400 font-bold">${pts}</td>
+            <td class="p-2 text-xs ${banColor} hidden sm:table-cell">${card.ban_tcg}</td>
+            <td class="p-2 font-mono text-emerald-400 hidden md:table-cell">$${card.tcg_price}</td>
+            <td class="p-2 font-mono text-emerald-400 hidden lg:table-cell">€${card.cm_price}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderStaplesGrid(slice){
+    const tbody=document.getElementById('staple-table-body');
+    if(!slice.length){tbody.innerHTML=`<tr><td colspan="7" class="p-6 text-center text-gray-500 italic">No staples match.</td></tr>`;return;}
+    tbody.innerHTML="";
+    slice.forEach((card,idx)=>{
+        const pts=card.genesys_points!=null?`${card.genesys_points} pts`:'—';
+        const banColor=card.ban_tcg==='Forbidden'?'text-red-500 font-bold':card.ban_tcg==='Limited'?'text-orange-400 font-bold':'text-gray-400';
+        const badges=card.use_case?card.use_case.split(',').map(u=>`<span class="px-1.5 py-0.5 bg-cyan-950/40 text-[#00ecda] border border-cyan-900/40 text-[10px] rounded font-medium inline-block mr-1 my-0.5">${esc(u.trim())}</span>`).join(''):`<span class="text-gray-600 italic">—</span>`;
+        const primary=cardImgSrc(card),fallback=cardImgFallback(card);
+        const tr=document.createElement('tr');
+        tr.className="hover:bg-gray-800/30 transition border-b border-gray-900 text-xs cursor-pointer select-none";
+        tr.onclick=()=>handleRowSelection(idx);
+        const img=document.createElement('img');
+        img.src=primary;img.className="h-8 w-8 object-cover rounded border border-gray-800";
+        if(fallback)img.onerror=function(){this.onerror=null;this.src=fallback;};
+        else img.onerror=function(){this.onerror=null;this.style.background='#1f2937';};
+        const imgTd=document.createElement('td');imgTd.className="p-1.5";imgTd.appendChild(img);
+        tr.appendChild(imgTd);
+        tr.innerHTML+=`
+            <td class="p-2 font-bold text-white whitespace-normal break-words pr-2 leading-tight">${esc(card.name)}</td>
+            <td class="p-2 whitespace-normal hidden sm:table-cell"><div class="flex flex-wrap gap-y-1">${badges}</div></td>
+            <td class="p-2 font-mono text-[#00ecda] text-center font-bold">${pts}</td>
+            <td class="p-2 text-xs ${banColor} hidden sm:table-cell">${card.ban_tcg}</td>
+            <td class="p-2 font-mono text-emerald-400 hidden md:table-cell">$${card.tcg_price}</td>
+            <td class="p-2 font-mono text-emerald-400 hidden lg:table-cell">€${card.cm_price}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderDetailRarityTable(card,isSortOp=false){
+    if(!isSortOp){selectedActiveCardObject=card;detailSortField="";detailSortDirection="desc";updateDetailSortIndicators();}
+    document.getElementById('selected-card-title').innerText=card.name;
+    const tbody=document.getElementById('detail-table-body');
+    if(!card.all_prints?.length){tbody.innerHTML=`<tr><td colspan="5" class="p-5 text-center text-gray-600 italic">No printings found.</td></tr>`;return;}
+    let prints=[...card.all_prints];
+    if(detailSortField){prints.sort((a,b)=>{const va=String(a[detailSortField]||"").toLowerCase(),vb=String(b[detailSortField]||"").toLowerCase();const cmp=va<vb?-1:va>vb?1:0;return detailSortDirection==="desc"?-cmp:cmp;});}
+    const primary=cardImgSrc(card),fallback=cardImgFallback(card);
+    tbody.innerHTML="";
+    prints.forEach(pr=>{
+        const tr=document.createElement('tr');
+        tr.className="hover:bg-gray-800/20 border-b border-gray-900/40 transition text-xs";
+        const img=document.createElement('img');
+        img.src=primary;img.className="h-7 w-7 object-cover rounded border border-gray-800";
+        if(fallback)img.onerror=function(){this.onerror=null;this.src=fallback;};
+        const imgTd=document.createElement('td');imgTd.className="p-1.5";imgTd.appendChild(img);
+        tr.appendChild(imgTd);
+        tr.innerHTML+=`
+            <td class="p-2 text-gray-400 whitespace-normal break-words pr-2">${esc(card.name)}</td>
+            <td class="p-2 text-yellow-500 font-medium whitespace-normal break-words pr-2">${esc(pr.rarity)}</td>
+            <td class="p-2 text-gray-300 whitespace-normal break-words pr-2">${esc(pr.set_name)}</td>
+            <td class="p-2 font-mono text-gray-500 whitespace-nowrap hidden sm:table-cell">${pr.release_date}</td>`;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderCardVisualEngine(card){
+    document.getElementById('render-viewport-header-title').innerText=card.name;
+    document.getElementById('render-viewport-text').innerText=card.desc||"No card text.";
+    const imgEl=document.getElementById('render-viewport-image');
+    imgEl.src=card.image_url_full||card.image_url_cropped||"";
+    if(card.image_url_full&&card.image_url_cropped&&!card.image_url_full){imgEl.onerror=function(){this.onerror=null;this.src=card.image_url_cropped;};}
+    const archBox=document.getElementById('render-viewport-archetype-box');
+    if(card.archetype){document.getElementById('render-viewport-archetype').innerText=card.archetype;archBox.classList.remove('hidden');}else archBox.classList.add('hidden');
+    const rawType=card.type?.toLowerCase()||"";
+    const tc=document.getElementById('render-viewport-type-container');const stats=document.getElementById('render-viewport-stats');
+    tc.innerHTML="";
+    document.getElementById('render-viewport-subname').innerText=rawType.includes("monster")?`ATTR: ${card.attribute||"NONE"}${card.level?` | LVL: ${card.level}`:""}`:rawType.includes("spell")?"SPELL CARD":rawType.includes("trap")?"TRAP CARD":"OTHER";
+    const mkSpan=(txt,cls)=>{const s=document.createElement('span');s.className=`text-[10px] font-mono px-2 py-0.5 rounded font-bold uppercase tracking-wide whitespace-nowrap ${cls}`;s.innerText=txt;tc.appendChild(s);};
+    if(rawType.includes("monster")){
+        const tokens=card.race?[card.race]:[];
+        card.humanReadableCardType?.split(" ").forEach(t=>{if(t&&!tokens.includes(t))tokens.push(t);});
+        tokens.forEach(t=>mkSpan(t,"bg-amber-950/40 text-amber-400 border border-amber-900/40"));
+        if(card.atk!=null&&card.def!=null){stats.innerText=`ATK/ ${card.atk}   DEF/ ${card.def}`;stats.classList.remove('hidden');}else stats.classList.add('hidden');
+    }else if(rawType.includes("spell")){[card.race||"Normal","Spell"].forEach(t=>mkSpan(t,"bg-emerald-950/40 text-emerald-400 border border-emerald-900/40"));stats.classList.add('hidden');}
+    else if(rawType.includes("trap")){[card.race||"Normal","Trap"].forEach(t=>mkSpan(t,"bg-rose-950/40 text-rose-400 border border-rose-900/40"));stats.classList.add('hidden');}
+    else{mkSpan(card.type||"Card","bg-gray-800 text-gray-400");stats.classList.add('hidden');}
+    document.getElementById('card-render-panel').classList.remove('hidden');
+}
+function closeRenderViewport(){document.getElementById('card-render-panel').classList.add('hidden');}
+
+// ════════════════════════════════════════════════════
+// SUGGESTION QUEUE
+// ════════════════════════════════════════════════════
+function checkDuplicateSubmission(){
+    const name=document.getElementById('submit-card-name').value.trim();
+    const useCase=document.getElementById('submit-use-case').value;
+    const msg=document.getElementById('submit-duplicate-msg');
+    if(!name){msg.classList.add('hidden');return;}
+    // Check queue
+    const inQueue=suggestionQueue.some(s=>s.name.toLowerCase()===name.toLowerCase()&&s.useCase===useCase);
+    // Check existing site data
+    const inData=rawDataset.some(c=>c.name.toLowerCase()===name.toLowerCase()&&c.is_staple&&(c.use_case||"").split(',').map(s=>s.trim()).includes(useCase));
+    if(inQueue){msg.innerText="Already in queue: this card + use case combo was already submitted.";msg.classList.remove('hidden');}
+    else if(inData){msg.innerText="Already a staple: this card is already listed with this use case in the site data.";msg.classList.remove('hidden');}
+    else{msg.classList.add('hidden');}
+}
+function handleStapleSubmission(){
+    const name=document.getElementById('submit-card-name').value.trim();
+    if(!name){alert("Enter a card name.");return;}
+    const useCase=document.getElementById('submit-use-case').value;
+    const inQueue=suggestionQueue.some(s=>s.name.toLowerCase()===name.toLowerCase()&&s.useCase===useCase);
+    const inData=rawDataset.some(c=>c.name.toLowerCase()===name.toLowerCase()&&c.is_staple&&(c.use_case||"").split(',').map(s=>s.trim()).includes(useCase));
+    if(inQueue||inData){checkDuplicateSubmission();return;}
+    const timestamp=new Date().toISOString().substring(0,10);
+    suggestionQueue.push({name,useCase,timestamp});
+    localStorage.setItem('ygo_suggestions',JSON.stringify(suggestionQueue));
+    document.getElementById('submit-card-name').value="";
+    document.getElementById('submit-duplicate-msg').classList.add('hidden');
+    renderSuggestionQueue();
+}
+function renderSuggestionQueue(){
+    const badge=document.getElementById('suggestion-count-badge');
+    const container=document.getElementById('suggestion-queue-container');
+    const list=document.getElementById('suggestion-queue-list');
+    badge.innerText=`${suggestionQueue.length} queued`;
+    if(!suggestionQueue.length){container.classList.add('hidden');return;}
+    container.classList.remove('hidden');
+    list.innerHTML=suggestionQueue.map((s,i)=>`
+        <div class="flex items-center justify-between bg-[#0d0d10] border border-gray-800 rounded px-2 py-1.5 gap-2">
+            <div class="flex-1 min-w-0">
+                <span class="text-white font-semibold text-[11px] truncate block">${esc(s.name)}</span>
+                <span class="text-[10px] text-cyan-400">${esc(s.useCase)}</span>
+                <span class="text-[9px] text-gray-600 ml-1">${s.timestamp}</span>
+            </div>
+        </div>`).join('');
+}
+function clearSuggestionsAdmin(){
+    const pw=prompt("Admin password:");if(pw===null)return;
+    if(pw!==ADMIN_PASSWORD){alert("Incorrect.");return;}
+    suggestionQueue=[];localStorage.setItem('ygo_suggestions','[]');renderSuggestionQueue();
+}
+function exportSuggestionsCSV(){
+    if(!suggestionQueue.length)return;
+    const rows=suggestionQueue.map(s=>`"${s.name.replace(/"/g,'""')}","${s.useCase.replace(/"/g,'""')}","${s.timestamp}"`);
+    const blob=new Blob(["Card Name,Use Case,Date\n"+rows.join("\n")],{type:'text/csv'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ygo_staple_suggestions.csv';a.click();
+}
+
+// ════════════════════════════════════════════════════
+// RESET
+// ════════════════════════════════════════════════════
+function resetSlicers(){
+    ['filter-name','filter-set-input','filter-rarity-input','filter-archetype-input','filter-effect-input'].forEach(id=>document.getElementById(id).value="");
+    document.getElementById('filter-usecase').value="ALL";
+    ['filter-year-start','filter-year-end','filter-points-min','filter-points-max','filter-atk-min','filter-atk-max','filter-def-min','filter-def-max'].forEach(id=>document.getElementById(id).value="");
+    ['filter-level-min','filter-level-max','filter-scale-min','filter-scale-max'].forEach(id=>document.getElementById(id).value="ALL");
+    Object.values(filterState).forEach(s=>s.clear());
+    tagFilters.set=[];tagFilters.rarity=[];tagFilters.archetype=[];
+    renderTagFilter('set');renderTagFilter('rarity');renderTagFilter('archetype');
+    refreshStaticPills();
+    buildPills('race-pills',allRaceOptions,filterState.race,'pill-race');
+    effectKeywordTags=[];renderEffectTags();
+    sortField="";sortDirection="desc";updateSortIndicators();applyFilterMatrix();
+}
+
+// ════════════════════════════════════════════════════
+// CLOSE DROPDOWNS
+// ════════════════════════════════════════════════════
+document.addEventListener('click',e=>{
+    [['filter-name','name-autocomplete-dropdown'],
+     ['filter-set-input','set-autocomplete-dropdown'],
+     ['filter-rarity-input','rarity-autocomplete-dropdown'],
+     ['filter-archetype-input','archetype-autocomplete-dropdown'],
+     ['filter-year-start','year-start-dropdown'],
+     ['filter-year-end','year-end-dropdown'],
+     ['submit-card-name','autocomplete-dropdown']
+    ].forEach(([inp,dd])=>{if(e.target.id!==inp)document.getElementById(dd)?.classList.add('hidden');});
+});
+
+initDashboardEngine();
+</script>
+</body>
+</html>
