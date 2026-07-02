@@ -29,15 +29,15 @@
         input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0;}
         input[type=number]{-moz-appearance:textfield;}
 
-        /* Mobile: stack layout */
+        /* Mobile: stack layout, full horizontal scroll on tables */
         @media(max-width:1023px){
-            body{overflow:auto;height:auto;max-height:none;}
-            main{flex-direction:column!important;overflow:visible!important;}
-            .flex-1.min-h-0.flex.flex-col.gap-4.overflow-hidden{overflow:visible!important;min-height:0;}
-            #page-main-view,#page-staple-tracker{flex:none!important;height:420px;}
-            .flex-\[2\]{flex:none!important;height:300px;}
-            .lg\:w-85{width:100%!important;}
-            .max-h-full{max-height:none!important;}
+            body{overflow:auto!important;height:auto!important;max-height:none!important;}
+            main{flex-direction:column!important;}
+            /* left column: let it grow naturally, no overflow clipping */
+            main>div:first-child{overflow:visible!important;min-height:0;}
+            /* each table panel: fixed height with internal scroll */
+            #page-main-view,#page-staple-tracker{flex:none!important;height:400px;}
+            .flex-\[2\]{flex:none!important;height:280px;}
         }
     </style>
 </head>
@@ -84,14 +84,14 @@
                         <tr>
                             <th class="p-2 w-[50px]">Img</th>
                             <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('name')">Name <span id="sort-icon-name">↕</span></th>
-                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden sm:table-cell" onclick="handleSortField('latest_set_name')">Latest Set <span id="sort-icon-latest_set_name">↕</span></th>
-                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden md:table-cell" onclick="handleSortField('latest_printing_date')">Release <span id="sort-icon-latest_printing_date">↕</span></th>
-                            <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50 hidden md:table-cell" onclick="handleSortField('total_printings')">Prints <span id="sort-icon-total_printings">↕</span></th>
-                            <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50 hidden lg:table-cell" onclick="handleSortField('rarity_count')">Rarities <span id="sort-icon-rarity_count">↕</span></th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('latest_set_name')">Latest Set <span id="sort-icon-latest_set_name">↕</span></th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('latest_printing_date')">Release <span id="sort-icon-latest_printing_date">↕</span></th>
+                            <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('total_printings')">Prints <span id="sort-icon-total_printings">↕</span></th>
+                            <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('rarity_count')">Rarities <span id="sort-icon-rarity_count">↕</span></th>
                             <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('genesys_points')">Pts <span id="sort-icon-genesys_points">↕</span></th>
-                            <th class="p-2 hidden sm:table-cell">Banlist</th>
-                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden md:table-cell" onclick="handleSortField('tcg_price')">TCG$ <span id="sort-icon-tcg_price">↕</span></th>
-                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden lg:table-cell" onclick="handleSortField('cm_price')">CM€ <span id="sort-icon-cm_price">↕</span></th>
+                            <th class="p-2">Banlist</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('tcg_price')">TCG$ <span id="sort-icon-tcg_price">↕</span></th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('cm_price')">CM€ <span id="sort-icon-cm_price">↕</span></th>
                         </tr>
                     </thead>
                     <tbody id="main-table-body" class="divide-y divide-gray-800/50"></tbody>
@@ -110,11 +110,11 @@
                         <tr>
                             <th class="p-2 w-[50px]">Img</th>
                             <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('name')">Name <span id="sort-icon-staple-name">↕</span></th>
-                            <th class="p-2 hidden sm:table-cell">Use Case</th>
+                            <th class="p-2">Use Case</th>
                             <th class="p-2 text-center cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('genesys_points')">Pts <span id="sort-icon-staple-genesys_points">↕</span></th>
-                            <th class="p-2 hidden sm:table-cell">Banlist</th>
-                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden md:table-cell" onclick="handleSortField('tcg_price')">TCG$ <span id="sort-icon-staple-tcg_price">↕</span></th>
-                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden lg:table-cell" onclick="handleSortField('cm_price')">CM€ <span id="sort-icon-staple-cm_price">↕</span></th>
+                            <th class="p-2">Banlist</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('tcg_price')">TCG$ <span id="sort-icon-staple-tcg_price">↕</span></th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleSortField('cm_price')">CM€ <span id="sort-icon-staple-cm_price">↕</span></th>
                         </tr>
                     </thead>
                     <tbody id="staple-table-body" class="divide-y divide-gray-800/50"></tbody>
@@ -136,7 +136,7 @@
                             <th class="p-2">Card Name</th>
                             <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleDetailSortField('rarity')">Rarity</th>
                             <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleDetailSortField('set_name')">Set</th>
-                            <th class="p-2 cursor-pointer hover:bg-gray-800/50 hidden sm:table-cell" onclick="handleDetailSortField('release_date')">Date</th>
+                            <th class="p-2 cursor-pointer hover:bg-gray-800/50" onclick="handleDetailSortField('release_date')">Date</th>
                         </tr>
                     </thead>
                     <tbody id="detail-table-body" class="divide-y divide-gray-800/40">
@@ -188,6 +188,19 @@
                     <button onclick="addEffectTag()" class="px-2.5 py-1.5 bg-cyan-950 border border-cyan-800 text-[#00ecda] rounded-lg text-xs font-bold hover:bg-cyan-900 cursor-pointer">+</button>
                 </div>
             </div>
+			<div class="space-y-1">
+    <label class="text-[10px] font-bold text-gray-500 uppercase">
+        Card Name + Effect Search
+    </label>
+
+    <input
+        type="text"
+        id="filter-name-effect"
+        oninput="applyFilterMatrix()"
+        placeholder="Search card name or effect..."
+        class="w-full bg-[#0d0d10] border border-gray-700 rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]"
+    >
+</div>
             <div id="outside-usecase-container" class="space-y-1 hidden">
                 <label class="text-[10px] font-bold text-gray-500 uppercase">Use Case</label>
                 <select id="filter-usecase" onchange="applyFilterMatrix()" class="w-full bg-[#0d0d10] border border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-white focus:outline-none focus:border-[#00ecda]">
@@ -651,7 +664,10 @@ function acDrop(inputId,dropdownId,pool,hoverCls,onPick){
     });
     dd.classList.remove('hidden');
 }
-function handleCardNameAutocomplete(){acDrop('filter-name','name-autocomplete-dropdown',autocompletePool,'hover:bg-[#00ecda] hover:text-gray-900');}
+function handleCardNameAutocomplete(){
+    applyFilterMatrix(); // always filter live as user types
+    acDrop('filter-name','name-autocomplete-dropdown',autocompletePool,'hover:bg-[#00ecda] hover:text-gray-900');
+}
 function handleSetAutocomplete()     {acDrop('filter-set-input','set-autocomplete-dropdown',distinctSetNames,'hover:bg-[#00ecda] hover:text-gray-900',m=>{document.getElementById('filter-set-input').value=m;commitTag('filter-set-input','set',distinctSetNames);});}
 function handleRarityAutocomplete()  {acDrop('filter-rarity-input','rarity-autocomplete-dropdown',distinctRarities,'hover:bg-[#00ecda] hover:text-gray-900',m=>{document.getElementById('filter-rarity-input').value=m;commitTag('filter-rarity-input','rarity',distinctRarities);});}
 function handleArchetypeAutocomplete(){acDrop('filter-archetype-input','archetype-autocomplete-dropdown',distinctArchetypes,'hover:bg-purple-900/60 hover:text-purple-200',m=>{document.getElementById('filter-archetype-input').value=m;commitTag('filter-archetype-input','archetype',distinctArchetypes);});}
@@ -662,16 +678,26 @@ function handleAutocompleteSearch()  {acDrop('submit-card-name','autocomplete-dr
 // SUB-TYPE MATCHING
 // ════════════════════════════════════════════════════
 function matchesMonsterSub(card,st){
-    // Match against card.type field directly (Effect Monster, Ritual Monster, etc.)
     const t=card.type||"";
     const r=card.humanReadableCardType||"";
-    if(st==="Normal Monster") return t.includes("Normal Monster")||r.includes("Normal Monster");
-    if(st==="Effect Monster")  return t==="Effect Monster"; // strict — base effect, not subtypes
-    if(st==="Token")           return t.includes("Token");
-    // For Pendulum variants and others, check humanReadableCardType contains all words
-    if(st.startsWith("Pendulum")) return st.split(" ").every(w=>r.includes(w));
-    // Other structured types: Ritual Monster, Fusion Monster, etc.
-    return t.includes(st)||r.includes(st.replace(" Monster",""));
+    const ft=(card.frameType||"").toLowerCase(); // e.g. "effect", "normal", "ritual", "fusion", "synchro", "xyz", "link", "token"
+    if(st==="Normal Monster") return ft==="normal"||t.includes("Normal Monster");
+    if(st==="Effect Monster")  return ft==="effect"; // base effect monsters only, not subtypes
+    if(st==="Token")           return ft==="token"||t.includes("Token");
+    if(st==="Ritual Monster")  return ft==="ritual"||t.includes("Ritual Monster");
+    if(st==="Fusion Monster")  return ft==="fusion"||t.includes("Fusion Monster");
+    if(st==="Synchro Monster") return ft==="synchro"||t.includes("Synchro Monster");
+    if(st==="Xyz Monster")     return ft==="xyz"||t.includes("Xyz Monster");
+    if(st==="Link Monster")    return ft==="link"||t.includes("Link Monster");
+    // Pendulum variants — frameType is e.g. "effect_pendulum", "normal_pendulum", "ritual_pendulum", etc.
+    if(st==="Pendulum Monster")         return ft.includes("pendulum");
+    if(st==="Pendulum Normal Monster")  return ft==="normal_pendulum";
+    if(st==="Pendulum Effect Monster")  return ft==="effect_pendulum";
+    if(st==="Pendulum Fusion Monster")  return ft==="fusion_pendulum";
+    if(st==="Pendulum Synchro Monster") return ft==="synchro_pendulum";
+    if(st==="Pendulum Xyz Monster")     return ft==="xyz_pendulum";
+    if(st==="Pendulum Ritual Monster")  return ft==="ritual_pendulum";
+    return r.includes(st);
 }
 
 // ════════════════════════════════════════════════════
@@ -679,6 +705,11 @@ function matchesMonsterSub(card,st){
 // ════════════════════════════════════════════════════
 function applyFilterMatrix(){
     const nameQuery=document.getElementById('filter-name').value.toLowerCase().trim();
+	const nameEffectQuery =
+    document.getElementById('filter-name-effect')
+        .value
+        .toLowerCase()
+        .trim();
     const useCaseQuery=document.getElementById('filter-usecase').value;
     const syv=document.getElementById('filter-year-start').value;const startYear=syv?parseInt(syv):null;
     const eyv=document.getElementById('filter-year-end').value;const endYear=eyv?parseInt(eyv):null;
@@ -700,6 +731,14 @@ function applyFilterMatrix(){
     const filtered=rawDataset.filter(card=>{
         if(nameQuery&&!card.name.toLowerCase().includes(nameQuery))return false;
         if(effectLower.length>0){const dl=(card.desc||"").toLowerCase();if(!effectLower.every(kw=>dl.includes(kw)))return false;}
+		if(nameEffectQuery){
+    const combined =
+        ((card.name || "") + " " + (card.desc || "")).toLowerCase();
+
+    if(!combined.includes(nameEffectQuery))
+        return false;
+}
+		
         // OR tag filters
         if(setTags.length>0){
             const cardSets=(card.all_prints||[]).map(p=>p.set_name.toLowerCase());
@@ -775,8 +814,14 @@ function applyFilterMatrix(){
     document.getElementById('kpi-matched-count').innerText=filtered.length.toLocaleString();
     document.getElementById('kpi-total-printings').innerText=filtered.reduce((s,c)=>s+(c.total_printings||0),0).toLocaleString();
     document.getElementById('kpi-staples-count').innerText=filtered.filter(c=>c.is_staple).length.toLocaleString();
-    const slice=filtered.slice(0,100);currentRenderedSlice=slice;
-    currentTab==='main-view'?renderMainGrid(slice):renderStaplesGrid(slice);
+const MAX_RENDERED_ROWS = 300;
+
+const slice = filtered.slice(0, MAX_RENDERED_ROWS);
+currentRenderedSlice = slice;
+
+currentTab === 'main-view'
+    ? renderMainGrid(slice)
+    : renderStaplesGrid(slice);
 }
 
 // ════════════════════════════════════════════════════
@@ -786,8 +831,8 @@ function handleRowSelection(idx){const card=currentRenderedSlice[idx];if(!card)r
 
 function cardImgSrc(card){return card.image_url_cropped||card.image_url_full||"";}
 function cardImgFallback(card){
-    // if primary was cropped but missing, try full; otherwise nothing
-    return card.image_url_cropped&&card.image_url_full?card.image_url_full:"";
+    // Always use full image as fallback (covers missing cropped AND cards with only full image)
+    return card.image_url_full||"";
 }
 
 function renderMainGrid(slice){
@@ -809,14 +854,50 @@ function renderMainGrid(slice){
         tr.appendChild(imgTd);
         tr.innerHTML+=`
             <td class="p-2 font-bold text-white whitespace-normal break-words pr-2 leading-tight">${esc(card.name)}</td>
-            <td class="p-2 text-gray-300 whitespace-normal break-words pr-2 hidden sm:table-cell">${esc(card.latest_set_name)}</td>
-            <td class="p-2 font-mono text-gray-400 whitespace-nowrap hidden md:table-cell">${card.latest_printing_date}</td>
-            <td class="p-2 font-mono text-center text-gray-300 font-bold hidden md:table-cell">${card.total_printings}</td>
-            <td class="p-2 font-mono text-center text-yellow-500 hidden lg:table-cell">${card.rarity_count}</td>
+            <td class="p-2 text-gray-300 whitespace-normal break-words pr-2">${esc(card.latest_set_name)}</td>
+            <td class="p-2 font-mono text-gray-400 whitespace-nowrap">${card.latest_printing_date}</td>
+            <td class="p-2 font-mono text-center text-gray-300 font-bold">${card.total_printings}</td>
+            <td class="p-2 font-mono text-center text-yellow-500">${card.rarity_count}</td>
             <td class="p-2 font-mono text-center text-cyan-400 font-bold">${pts}</td>
-            <td class="p-2 text-xs ${banColor} hidden sm:table-cell">${card.ban_tcg}</td>
-            <td class="p-2 font-mono text-emerald-400 hidden md:table-cell">$${card.tcg_price}</td>
-            <td class="p-2 font-mono text-emerald-400 hidden lg:table-cell">€${card.cm_price}</td>`;
+            <td class="p-2 text-xs ${banColor}">${card.ban_tcg}</td>
+            <td class="p-2">
+<a
+    href="https://www.tcgplayer.com/search/yugioh/product?q=${encodeURIComponent(card.name)}&view=grid"
+    target="_blank"
+    rel="noopener noreferrer"
+    onclick="event.stopPropagation();"
+    class="inline-flex items-center gap-1
+           px-2 py-1
+           rounded-md
+           border border-emerald-700
+           text-emerald-400
+           hover:bg-emerald-900/30
+           hover:border-emerald-400
+           transition"
+>
+    $${card.tcg_price}
+    ↗
+</a>
+</td>
+            <td class="p-2">
+<a
+    href="https://www.cardmarket.com/en/YuGiOh/Products/Search?searchMode=v2&idCategory=0&idExpansion=0&searchString=%5B${encodeURIComponent(card.name)}%5D&exactMatch=on&idRarity=0&perSite=30"
+    target="_blank"
+    rel="noopener noreferrer"
+    onclick="event.stopPropagation();"
+    class="inline-flex items-center gap-1
+           px-2 py-1
+           rounded-md
+           border border-cyan-700
+           text-cyan-400
+           hover:bg-cyan-900/30
+           hover:border-cyan-400
+           transition"
+>
+    €${card.cm_price}
+    ↗
+</a>
+</td>`;
         tbody.appendChild(tr);
     });
 }
@@ -841,11 +922,47 @@ function renderStaplesGrid(slice){
         tr.appendChild(imgTd);
         tr.innerHTML+=`
             <td class="p-2 font-bold text-white whitespace-normal break-words pr-2 leading-tight">${esc(card.name)}</td>
-            <td class="p-2 whitespace-normal hidden sm:table-cell"><div class="flex flex-wrap gap-y-1">${badges}</div></td>
+            <td class="p-2 whitespace-normal"><div class="flex flex-wrap gap-y-1">${badges}</div></td>
             <td class="p-2 font-mono text-[#00ecda] text-center font-bold">${pts}</td>
-            <td class="p-2 text-xs ${banColor} hidden sm:table-cell">${card.ban_tcg}</td>
-            <td class="p-2 font-mono text-emerald-400 hidden md:table-cell">$${card.tcg_price}</td>
-            <td class="p-2 font-mono text-emerald-400 hidden lg:table-cell">€${card.cm_price}</td>`;
+            <td class="p-2 text-xs ${banColor}">${card.ban_tcg}</td>
+            <td class="p-2">
+<a
+    href="https://www.tcgplayer.com/search/yugioh/product?q=${encodeURIComponent(card.name)}&view=grid"
+    target="_blank"
+    rel="noopener noreferrer"
+    onclick="event.stopPropagation();"
+    class="inline-flex items-center gap-1
+           px-2 py-1
+           rounded-md
+           border border-emerald-700
+           text-emerald-400
+           hover:bg-emerald-900/30
+           hover:border-emerald-400
+           transition"
+>
+    $${card.tcg_price}
+    ↗
+</a>
+</td>
+            <td class="p-2">
+<a
+    href="https://www.cardmarket.com/en/YuGiOh/Products/Search?searchMode=v2&idCategory=0&idExpansion=0&searchString=%5B${encodeURIComponent(card.name)}%5D&exactMatch=on&idRarity=0&perSite=30"
+    target="_blank"
+    rel="noopener noreferrer"
+    onclick="event.stopPropagation();"
+    class="inline-flex items-center gap-1
+           px-2 py-1
+           rounded-md
+           border border-cyan-700
+           text-cyan-400
+           hover:bg-cyan-900/30
+           hover:border-cyan-400
+           transition"
+>
+    €${card.cm_price}
+    ↗
+</a>
+</td>`;
         tbody.appendChild(tr);
     });
 }
@@ -871,7 +988,7 @@ function renderDetailRarityTable(card,isSortOp=false){
             <td class="p-2 text-gray-400 whitespace-normal break-words pr-2">${esc(card.name)}</td>
             <td class="p-2 text-yellow-500 font-medium whitespace-normal break-words pr-2">${esc(pr.rarity)}</td>
             <td class="p-2 text-gray-300 whitespace-normal break-words pr-2">${esc(pr.set_name)}</td>
-            <td class="p-2 font-mono text-gray-500 whitespace-nowrap hidden sm:table-cell">${pr.release_date}</td>`;
+            <td class="p-2 font-mono text-gray-500 whitespace-nowrap">${pr.release_date}</td>`;
         tbody.appendChild(tr);
     });
 }
@@ -963,7 +1080,7 @@ function exportSuggestionsCSV(){
 // RESET
 // ════════════════════════════════════════════════════
 function resetSlicers(){
-    ['filter-name','filter-set-input','filter-rarity-input','filter-archetype-input','filter-effect-input'].forEach(id=>document.getElementById(id).value="");
+    ['filter-name','filter-name-effect','filter-set-input','filter-rarity-input','filter-archetype-input','filter-effect-input'].forEach(id=>document.getElementById(id).value="");
     document.getElementById('filter-usecase').value="ALL";
     ['filter-year-start','filter-year-end','filter-points-min','filter-points-max','filter-atk-min','filter-atk-max','filter-def-min','filter-def-max'].forEach(id=>document.getElementById(id).value="");
     ['filter-level-min','filter-level-max','filter-scale-min','filter-scale-max'].forEach(id=>document.getElementById(id).value="ALL");
